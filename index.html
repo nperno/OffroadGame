@@ -2,11 +2,22 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <!-- iOS Safari full-screen / status bar -->
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-fullscreen" />
   <title>Off-Road Rampage</title>
   <link rel="stylesheet" href="css/style.css" />
 </head>
 <body>
+  <!-- Portrait-mode overlay — hidden in landscape via CSS -->
+  <div id="rotate-prompt">
+    <div id="rotate-inner">
+      <div id="rotate-icon">&#8635;</div>
+      <p>Rotate your device to landscape to play</p>
+    </div>
+  </div>
+
   <div id="game-container"></div>
 
   <!-- Phaser 3 -->
