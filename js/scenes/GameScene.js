@@ -58,6 +58,7 @@ class GameScene extends Phaser.Scene {
     this._setupCamera();
     this._buildHUD();
     this._setupKeys();
+    this._buildTouchControls();
     this._setupParticles();
     this._startCountdown();
   }
@@ -301,6 +302,107 @@ class GameScene extends Phaser.Scene {
     });
   }
 
+  // ── Touch controls ────────────────────────────────────────────────────────
+  _buildTouchControls() {
+    // Only show on touch-capable devices
+    if (!this.sys.game.device.input.touch) return;
+
+    const W  = this.scale.width;
+    const H  = this.scale.height;
+    const sf = 0;
+    const dp = 38;
+
+    // Zone definitions (in game coordinates 1200×700)
+    // Left side: steer left | steer right
+    // Right side: brake (above) | gas (below)
+    this._touchZones = {
+      left:  { x: 20,  y: 555, w: 125, h: 120 },
+      right: { x: 155, y: 555, w: 125, h: 120 },
+      brake: { x: W - 160, y: 530, w: 140, h: 70  },
+      up:    { x: W - 160, y: 608, w: 140, h: 82  },
+    };
+
+    // Visual layer — redrawn when press state changes
+    this._touchGfx = this.add.graphics().setScrollFactor(sf).setDepth(dp);
+    this._touchState = { left: false, right: false, up: false, brake: false };
+    this._drawTouchButtons(this._touchState);
+
+    // Labels
+    const labels = [
+      { key: 'left',  icon: '◄', sub: 'LEFT'  },
+      { key: 'right', icon: '►', sub: 'RIGHT' },
+      { key: 'brake', icon: '▼', sub: 'BRAKE' },
+      { key: 'up',    icon: '▲', sub: 'GAS'   },
+    ];
+    labels.forEach(({ key, icon, sub }) => {
+      const z = this._touchZones[key];
+      this.add.text(z.x + z.w / 2, z.y + z.h / 2 - 6, icon, {
+        fontFamily: 'Arial', fontSize: '30px', color: '#FFFFFF',
+        stroke: '#000000', strokeThickness: 3,
+      }).setOrigin(0.5).setScrollFactor(sf).setDepth(dp + 1);
+      this.add.text(z.x + z.w / 2, z.y + z.h - 14, sub, {
+        fontFamily: 'Arial', fontSize: '11px', color: '#9CA3AF',
+      }).setOrigin(0.5).setScrollFactor(sf).setDepth(dp + 1);
+    });
+
+    // Enable multi-touch (up to 4 simultaneous pointers)
+    this.input.addPointer(3);
+  }
+
+  _drawTouchButtons(state) {
+    if (!this._touchGfx) return;
+    const gfx = this._touchGfx;
+    gfx.clear();
+
+    const COLORS = {
+      left:  { base: 0x374151, active: 0x4B5563 },
+      right: { base: 0x374151, active: 0x4B5563 },
+      brake: { base: 0x7F1D1D, active: 0xB91C1C },
+      up:    { base: 0x14532D, active: 0x15803D },
+    };
+
+    Object.entries(this._touchZones).forEach(([key, z]) => {
+      const pressed = state[key];
+      const col = COLORS[key][pressed ? 'active' : 'base'];
+      gfx.fillStyle(col, pressed ? 0.92 : 0.72);
+      gfx.fillRoundedRect(z.x, z.y, z.w, z.h, 14);
+      gfx.lineStyle(2, 0xFFFFFF, pressed ? 0.5 : 0.2);
+      gfx.strokeRoundedRect(z.x, z.y, z.w, z.h, 14);
+    });
+  }
+
+  _readTouchInput() {
+    if (!this._touchZones) return { left: false, right: false, up: false, brake: false };
+
+    const next = { left: false, right: false, up: false, brake: false };
+    const ptrs = [
+      this.input.pointer1,
+      this.input.pointer2,
+      this.input.pointer3,
+      this.input.pointer4,
+    ];
+
+    ptrs.forEach(p => {
+      if (!p.isDown) return;
+      // pointer.x / pointer.y are already in game-space coords
+      Object.entries(this._touchZones).forEach(([key, z]) => {
+        if (p.x >= z.x && p.x <= z.x + z.w &&
+            p.y >= z.y && p.y <= z.y + z.h) {
+          next[key] = true;
+        }
+      });
+    });
+
+    // Redraw only when state changes
+    const changed = Object.keys(next).some(k => next[k] !== this._touchState[k]);
+    if (changed) {
+      this._touchState = next;
+      this._drawTouchButtons(next);
+    }
+
+    return next;
+  }
+
   // ── Particles ─────────────────────────────────────────────────────────────
   _setupParticles() {
     // Phaser 3.60 particle API — manual emit only (frequency: -1)
@@ -487,10 +589,12 @@ class GameScene extends Phaser.Scene {
   // ══════════════════════════════════════════════════════════════════════════
 
   _handleInput(dt) {
-    const up    = this.cursors.up.isDown    || this.wasd.up.isDown;
-    const down  = this.cursors.down.isDown  || this.wasd.down.isDown;
-    const left  = this.cursors.left.isDown  || this.wasd.left.isDown;
-    const right = this.cursors.right.isDown || this.wasd.right.isDown;
+    // Merge keyboard + touch input
+    const touch = this._readTouchInput();
+    const up    = touch.up    || this.cursors.up.isDown    || this.wasd.up.isDown;
+    const down  = touch.brake || this.cursors.down.isDown  || this.wasd.down.isDown;
+    const left  = touch.left  || this.cursors.left.isDown  || this.wasd.left.isDown;
+    const right = touch.right || this.cursors.right.isDown || this.wasd.right.isDown;
 
     // Respawn with R key
     if (Phaser.Input.Keyboard.JustDown(this.respawnKey)) {

@@ -4,14 +4,26 @@
   box-sizing: border-box;
 }
 
+/* Prevent iOS rubber-band scrolling and accidental zooming */
+html {
+  height: 100%;
+  overflow: hidden;
+  touch-action: none;
+}
+
 body {
   background: #0a0a0a;
   display: flex;
   justify-content: center;
   align-items: center;
-  min-height: 100vh;
+  height: 100%;
   overflow: hidden;
   font-family: Arial, sans-serif;
+  touch-action: none;
+  -webkit-user-select: none;
+  user-select: none;
+  /* Prevent tap highlight flash on iOS */
+  -webkit-tap-highlight-color: transparent;
 }
 
 #game-container {
@@ -20,5 +32,51 @@ body {
 
 #game-container canvas {
   display: block;
-  image-rendering: pixelated;
+  /* Crisp scaling for pixel art; smooth is fine too on mobile */
+  image-rendering: auto;
+}
+
+/* ── Portrait-mode rotation prompt ─────────────────────────────────────────── */
+#rotate-prompt {
+  display: none; /* hidden in landscape */
+  position: fixed;
+  inset: 0;
+  background: #0a0a0a;
+  z-index: 9999;
+  justify-content: center;
+  align-items: center;
+  flex-direction: column;
+  color: #F59E0B;
+  text-align: center;
+}
+
+#rotate-inner {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 20px;
+  padding: 32px;
+}
+
+#rotate-icon {
+  font-size: 72px;
+  animation: spin 2s linear infinite;
+}
+
+#rotate-inner p {
+  font-size: 22px;
+  color: #D1D5DB;
+  max-width: 280px;
+  line-height: 1.4;
+}
+
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to   { transform: rotate(360deg); }
+}
+
+/* Show prompt and hide game only on portrait mobile screens */
+@media (orientation: portrait) and (max-width: 1024px) {
+  #rotate-prompt    { display: flex; }
+  #game-container   { display: none; }
 }
